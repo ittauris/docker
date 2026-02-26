@@ -1,0 +1,90 @@
+groups:
+  - name: server_alerts
+    rules:
+      # Server availability
+      - alert: ServerDown
+        expr: server_up == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: server-monitoring
+        annotations:
+          summary: "Server {{ $labels.host }} is down"
+          description: "Server {{ $labels.host }} ({{ $labels.os_type }}) has been unavailable for 5 minutes"
+      
+      # Linux CPU high
+      - alert: LinuxCPUHigh
+        expr: linux_cpu_usage_percent > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: linux-servers
+        annotations:
+          summary: "High CPU usage on {{ $labels.host }}"
+          description: "CPU usage on {{ $labels.host }} is {{ $value }}%"
+      
+      # Linux memory high
+      - alert: LinuxMemoryHigh
+        expr: (linux_memory_used_bytes / linux_memory_total_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: linux-servers
+        annotations:
+          summary: "High memory usage on {{ $labels.host }}"
+          description: "Memory usage on {{ $labels.host }} is {{ $value | humanizePercentage }}"
+      
+      # Linux disk high
+      - alert: LinuxDiskHigh
+        expr: (linux_disk_used_bytes / linux_disk_total_bytes) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          service: linux-servers
+        annotations:
+          summary: "High disk usage on {{ $labels.host }} ({{ $labels.mountpoint }})"
+          description: "Disk usage on {{ $labels.host }}/{{ $labels.mountpoint }} is {{ $value | humanizePercentage }}"
+      
+      # Windows CPU high
+      - alert: WindowsCPUHigh
+        expr: windows_cpu_usage_percent > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: windows-servers
+        annotations:
+          summary: "High CPU usage on {{ $labels.host }}"
+          description: "CPU usage on {{ $labels.host }} is {{ $value }}%"
+      
+      # Windows memory high
+      - alert: WindowsMemoryHigh
+        expr: (windows_memory_used_bytes / windows_memory_total_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: windows-servers
+        annotations:
+          summary: "High memory usage on {{ $labels.host }}"
+          description: "Memory usage on {{ $labels.host }} is {{ $value | humanizePercentage }}"
+      
+      # Many Linux servers down
+      - alert: ManyLinuxServersDown
+        expr: sum(server_up{os_type="linux"} == 0) / sum(server_up{os_type="linux"} >= 0) > 0.3
+        for: 10m
+        labels:
+          severity: critical
+          service: linux-servers
+        annotations:
+          summary: "Many Linux servers are down"
+          description: "{{ $value | humanizePercentage }} of Linux servers are unavailable"
+      
+      # Many Windows servers down
+      - alert: ManyWindowsServersDown
+        expr: sum(server_up{os_type="windows"} == 0) / sum(server_up{os_type="windows"} >= 0) > 0.3
+        for: 10m
+        labels:
+          severity: critical
+          service: windows-servers
+        annotations:
+          summary: "Many Windows servers are down"
+          description: "{{ $value | humanizePercentage }} of Windows servers are unavailable"

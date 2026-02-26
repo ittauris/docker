@@ -1,0 +1,17 @@
+services:
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+    ports:
+      - "8100:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      DOZZLE_LEVEL: info
+      DOZZLE_TAILSIZE: 300
+      DOZZLE_FILTER: "status=running"
+    labels:
+      - 'wud.tag.include=^v\d+\.\d+\.\d+$'
+      - 'wud.watch=true'
+      - 'wud.trigger.docker.local.enabled=true'

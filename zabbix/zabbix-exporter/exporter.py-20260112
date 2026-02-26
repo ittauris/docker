@@ -1,0 +1,561 @@
+#!/usr/bin/env python3
+"""
+Zabbix Prometheus Exporter for Zabbix 7.4.5+
+Extended with Windows & Linux server metrics
+"""
+
+from pyzabbix import ZabbixAPI
+from prometheus_client import start_http_server, Gauge, Info, Counter
+import time
+import os
+import logging
+import sys
+import signal
+from datetime import datetime
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
+
+# Reduce log noise
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('pyzabbix').setLevel(logging.WARNING)
+
+# ============================================================================
+# Prometheus Metrics - ZABBIX SYSTEM
+# ============================================================================
+
+# API Status
+zabbix_api_up = Gauge('zabbix_api_up', 'Zabbix API availability status')
+zabbix_exporter_info = Info('zabbix_exporter', 'Zabbix exporter information')
+zabbix_version_info = Info('zabbix_version', 'Zabbix version information')
+
+# Host Metrics
+zabbix_hosts_total = Gauge('zabbix_hosts_total', 'Total number of monitored hosts')
+zabbix_hosts_enabled = Gauge('zabbix_hosts_enabled', 'Number of enabled hosts')
+zabbix_hosts_disabled = Gauge('zabbix_hosts_disabled', 'Number of disabled hosts')
+zabbix_hosts_available = Gauge('zabbix_hosts_available', 'Number of available hosts')
+zabbix_hosts_unavailable = Gauge('zabbix_hosts_unavailable', 'Number of unavailable hosts')
+
+# Hosts by OS type
+zabbix_hosts_by_os = Gauge('zabbix_hosts_by_os', 'Hosts by OS type', ['os_type'])
+
+# Item Metrics
+zabbix_items_total = Gauge('zabbix_items_total', 'Total number of items')
+zabbix_items_active = Gauge('zabbix_items_active', 'Number of active items')
+zabbix_items_disabled = Gauge('zabbix_items_disabled', 'Number of disabled items')
+zabbix_items_unsupported = Gauge('zabbix_items_unsupported', 'Number of unsupported items')
+zabbix_items_with_errors = Gauge('zabbix_items_with_errors', 'Number of items with errors')
+
+# Trigger Metrics
+zabbix_triggers_total = Gauge('zabbix_triggers_total', 'Total number of triggers')
+zabbix_triggers_enabled = Gauge('zabbix_triggers_enabled', 'Number of enabled triggers')
+zabbix_triggers_disabled = Gauge('zabbix_triggers_disabled', 'Number of disabled triggers')
+zabbix_triggers_active = Gauge('zabbix_triggers_active', 'Number of active triggers')
+
+# Problem Metrics
+zabbix_problems_total = Gauge('zabbix_problems_total', 'Total number of active problems')
+zabbix_problems_by_severity = Gauge('zabbix_problems_by_severity', 
+                                   'Number of problems by severity', 
+                                   ['severity'])
+
+# User Metrics
+zabbix_users_total = Gauge('zabbix_users_total', 'Total number of users')
+
+# Collection Metrics
+zabbix_collection_duration = Gauge('zabbix_collection_duration_seconds', 
+                                  'Duration of last metrics collection in seconds')
+zabbix_scrape_success_total = Counter('zabbix_scrape_success_total', 'Successful Zabbix scrapes')
+zabbix_scrape_errors_total = Counter('zabbix_scrape_errors_total', 'Failed Zabbix scrapes')
+
+# ============================================================================
+# Prometheus Metrics - SERVER METRICS
+# ============================================================================
+
+# Server availability
+server_up = Gauge('server_up', 'Server availability (1=up, 0=down)', ['host', 'os_type', 'host_group'])
+
+# Linux server metrics
+linux_cpu_usage = Gauge('linux_cpu_usage_percent', 'Linux CPU usage percentage', ['host'])
+linux_memory_used = Gauge('linux_memory_used_bytes', 'Linux memory used in bytes', ['host'])
+linux_memory_total = Gauge('linux_memory_total_bytes', 'Linux total memory in bytes', ['host'])
+linux_load_average = Gauge('linux_load_average', 'Linux load average (1 min)', ['host'])
+linux_disk_used = Gauge('linux_disk_used_bytes', 'Linux disk space used in bytes', ['host', 'mountpoint'])
+linux_disk_total = Gauge('linux_disk_total_bytes', 'Linux disk space total in bytes', ['host', 'mountpoint'])
+
+# Windows server metrics
+windows_cpu_usage = Gauge('windows_cpu_usage_percent', 'Windows CPU usage percentage', ['host'])
+windows_memory_used = Gauge('windows_memory_used_bytes', 'Windows memory used in bytes', ['host'])
+windows_memory_total = Gauge('windows_memory_total_bytes', 'Windows total memory in bytes', ['host'])
+windows_disk_used = Gauge('windows_disk_used_bytes', 'Windows disk space used in bytes', ['host', 'drive'])
+windows_disk_total = Gauge('windows_disk_total_bytes', 'Windows disk space total in bytes', ['host', 'drive'])
+windows_services_total = Gauge('windows_services_total', 'Total Windows services', ['host'])
+windows_services_running = Gauge('windows_services_running', 'Running Windows services', ['host'])
+
+# Common server metrics
+server_response_time = Gauge('server_response_time_ms', 'Server response time in milliseconds', ['host'])
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+def safe_int(value, default=0):
+    """Safely convert to integer"""
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_float(value, default=0.0):
+    """Safely convert to float"""
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+def connect_zabbix():
+    """Connect to Zabbix API"""
+    try:
+        # Get configuration
+        zabbix_url = os.getenv('ZABBIX_URL', 'http://zabbix-frontend:8080/api_jsonrpc.php')
+        zabbix_user = os.getenv('ZABBIX_USER', 'Admin')
+        zabbix_password = os.getenv('ZABBIX_PASSWORD', '')
+        api_token = os.getenv('ZABBIX_API_TOKEN')
+        
+        # Ensure correct URL
+        if not zabbix_url.endswith('/api_jsonrpc.php'):
+            if not zabbix_url.endswith('/'):
+                zabbix_url += '/'
+            zabbix_url += 'api_jsonrpc.php'
+        
+        logger.info(f"Connecting to Zabbix API: {zabbix_url}")
+        
+        # Connect
+        zapi = ZabbixAPI(zabbix_url)
+        zapi.timeout = 30  # Increased timeout for server metrics
+        zapi.session.verify = False
+        
+        # Authenticate
+        if api_token:
+            logger.info("Using API token authentication")
+            zapi.login(api_token=api_token)
+        else:
+            logger.info(f"Using user authentication: {zabbix_user}")
+            zapi.login(zabbix_user, zabbix_password)
+        
+        logger.info(f"Connected to Zabbix API version: {zapi.api_version()}")
+        return zapi
+        
+    except Exception as e:
+        logger.error(f"Failed to connect to Zabbix API: {e}")
+        return None
+
+def get_item_last_value(zapi, hostid, key_pattern, history_type=0):
+    """Get last value of an item by key pattern"""
+    try:
+        items = zapi.item.get(
+            hostids=hostid,
+            search={'key_': key_pattern},
+            output=['itemid', 'key_', 'name'],
+            limit=1
+        )
+        
+        if items:
+            history = zapi.history.get(
+                itemids=items[0]['itemid'],
+                history=history_type,  # 0=float, 3=numeric unsigned
+                output='extend',
+                sortfield='clock',
+                sortorder='DESC',
+                limit=1
+            )
+            if history:
+                return safe_float(history[0]['value'])
+    except Exception as e:
+        logger.debug(f"Error getting item {key_pattern}: {e}")
+    
+    return None
+
+def collect_server_metrics(zapi, host):
+    """Collect metrics for a specific server"""
+    hostname = host['host']
+    hostid = host['hostid']
+    is_available = host.get('available') == '1'
+    
+    # Determine OS type from groups
+    os_type = 'unknown'
+    host_group = 'unknown'
+    
+    groups = host.get('groups', [])
+    if groups:
+        group_names = [g['name'] for g in groups]
+        host_group = group_names[0] if group_names else 'unknown'
+        
+        # Detect OS from group names
+        for group in group_names:
+            if 'linux' in group.lower() or 'centos' in group.lower() or 'ubuntu' in group.lower() or 'debian' in group.lower():
+                os_type = 'linux'
+                break
+            elif 'windows' in group.lower() or 'win' in group.lower():
+                os_type = 'windows'
+                break
+    
+    # Set server availability
+    server_up.labels(host=hostname, os_type=os_type, host_group=host_group).set(1 if is_available else 0)
+    
+    if not is_available:
+        return  # Skip metrics if server is down
+    
+    try:
+        if os_type == 'linux':
+            # Linux CPU usage
+            cpu_usage = get_item_last_value(zapi, hostid, 'system.cpu.util[,idle]', 0)
+            if cpu_usage is not None:
+                # Convert idle to usage
+                linux_cpu_usage.labels(host=hostname).set(100.0 - cpu_usage)
+            
+            # Linux memory
+            mem_total = get_item_last_value(zapi, hostid, 'vm.memory.size[total]', 3)
+            if mem_total:
+                linux_memory_total.labels(host=hostname).set(mem_total)
+            
+            mem_used = get_item_last_value(zapi, hostid, 'vm.memory.size[used]', 3)
+            if mem_used:
+                linux_memory_used.labels(host=hostname).set(mem_used)
+            
+            # Linux load average
+            load_avg = get_item_last_value(zapi, hostid, 'system.cpu.load[percpu,avg1]', 0)
+            if load_avg:
+                linux_load_average.labels(host=hostname).set(load_avg)
+            
+            # Linux disk space (get first disk)
+            disk_items = zapi.item.get(
+                hostids=hostid,
+                search={'key_': 'vfs.fs.size'},
+                output=['itemid', 'key_', 'name']
+            )
+            
+            for item in disk_items[:3]:  # Limit to first 3 disks
+                if 'used' in item['key_'] and 'pused' not in item['key_']:
+                    mountpoint = item['key_'].split('[')[1].split(',')[0] if '[' in item['key_'] else 'unknown'
+                    value = get_item_last_value(zapi, hostid, item['key_'], 3)
+                    if value:
+                        linux_disk_used.labels(host=hostname, mountpoint=mountpoint).set(value)
+                
+                elif 'total' in item['key_']:
+                    mountpoint = item['key_'].split('[')[1].split(',')[0] if '[' in item['key_'] else 'unknown'
+                    value = get_item_last_value(zapi, hostid, item['key_'], 3)
+                    if value:
+                        linux_disk_total.labels(host=hostname, mountpoint=mountpoint).set(value)
+        
+        elif os_type == 'windows':
+            # Windows CPU usage
+            cpu_usage = get_item_last_value(zapi, hostid, 'perf_counter[\\Processor(_Total)\\% Processor Time]', 0)
+            if cpu_usage:
+                windows_cpu_usage.labels(host=hostname).set(cpu_usage)
+            
+            # Windows memory
+            mem_total = get_item_last_value(zapi, hostid, 'perf_counter[\\Memory\\Total Bytes]', 3)
+            if mem_total:
+                windows_memory_total.labels(host=hostname).set(mem_total)
+            
+            mem_used = get_item_last_value(zapi, hostid, 'perf_counter[\\Memory\\Used Bytes]', 3)
+            if mem_used:
+                windows_memory_used.labels(host=hostname).set(mem_used)
+            
+            # Windows disk space
+            disk_items = zapi.item.get(
+                hostids=hostid,
+                search={'key_': 'perf_counter[\LogicalDisk('},
+                output=['itemid', 'key_', 'name']
+            )
+            
+            for item in disk_items[:3]:  # Limit to first 3 drives
+                if '% Free Space' in item['name']:
+                    # Extract drive letter from key
+                    key_parts = item['key_'].split('LogicalDisk(')
+                    if len(key_parts) > 1:
+                        drive = key_parts[1].split(')')[0]
+                        free_percent = get_item_last_value(zapi, hostid, item['key_'], 0)
+                        if free_percent:
+                            # We need total size to calculate used
+                            total_key = item['key_'].replace('% Free Space', 'Total Bytes')
+                            total_size = get_item_last_value(zapi, hostid, total_key, 3)
+                            if total_size:
+                                windows_disk_total.labels(host=hostname, drive=drive).set(total_size)
+                                used_size = total_size * (100 - free_percent) / 100
+                                windows_disk_used.labels(host=hostname, drive=drive).set(used_size)
+        
+        # Server response time (Zabbix agent response)
+        agent_response = get_item_last_value(zapi, hostid, 'agent.ping', 3)
+        if agent_response:
+            server_response_time.labels(host=hostname).set(agent_response)
+        
+    except Exception as e:
+        logger.error(f"Error collecting metrics for server {hostname}: {e}")
+
+def collect_zabbix_system_metrics(zapi):
+    """Collect Zabbix system metrics"""
+    try:
+        # Host metrics
+        total_hosts = zapi.host.get(countOutput=True)
+        zabbix_hosts_total.set(safe_int(total_hosts))
+        
+        enabled_hosts = zapi.host.get(filter={'status': '0'}, countOutput=True)
+        zabbix_hosts_enabled.set(safe_int(enabled_hosts))
+        
+        disabled_hosts = zapi.host.get(filter={'status': '1'}, countOutput=True)
+        zabbix_hosts_disabled.set(safe_int(disabled_hosts))
+        
+        available_hosts = zapi.host.get(filter={'available': '1'}, countOutput=True)
+        zabbix_hosts_available.set(safe_int(available_hosts))
+        
+        unavailable_hosts = zapi.host.get(filter={'available': '2'}, countOutput=True)
+        zabbix_hosts_unavailable.set(safe_int(unavailable_hosts))
+        
+        # Hosts by OS type
+        linux_groups = zapi.hostgroup.get(filter={'name': ['Linux servers', 'Linux']}, output=['groupid'])
+        windows_groups = zapi.hostgroup.get(filter={'name': ['Windows servers', 'Windows']}, output=['groupid'])
+        
+        linux_count = 0
+        windows_count = 0
+        other_count = 0
+        
+        if linux_groups:
+            linux_count = zapi.host.get(groupids=[g['groupid'] for g in linux_groups], countOutput=True)
+        
+        if windows_groups:
+            windows_count = zapi.host.get(groupids=[g['groupid'] for g in windows_groups], countOutput=True)
+        
+        other_count = safe_int(total_hosts) - safe_int(linux_count) - safe_int(windows_count)
+        
+        zabbix_hosts_by_os.labels(os_type='linux').set(safe_int(linux_count))
+        zabbix_hosts_by_os.labels(os_type='windows').set(safe_int(windows_count))
+        zabbix_hosts_by_os.labels(os_type='other').set(safe_int(other_count))
+        
+        logger.info(f"Hosts: total={total_hosts}, Linux={linux_count}, Windows={windows_count}, Other={other_count}")
+        logger.info(f"Hosts: enabled={enabled_hosts}, available={available_hosts}")
+        
+        # Item metrics
+        total_items = zapi.item.get(countOutput=True)
+        zabbix_items_total.set(safe_int(total_items))
+        
+        active_items = zapi.item.get(filter={'state': '0'}, countOutput=True)
+        zabbix_items_active.set(safe_int(active_items))
+        
+        disabled_items = zapi.item.get(filter={'status': '1'}, countOutput=True)
+        zabbix_items_disabled.set(safe_int(disabled_items))
+        
+        unsupported_items = zapi.item.get(filter={'state': '1'}, countOutput=True)
+        zabbix_items_unsupported.set(safe_int(unsupported_items))
+        
+        items_with_errors = zapi.item.get(filter={'state': '1'}, countOutput=True)
+        zabbix_items_with_errors.set(safe_int(items_with_errors))
+        
+        logger.info(f"Items: total={total_items}, active={active_items}")
+        
+        # Trigger metrics
+        total_triggers = zapi.trigger.get(countOutput=True)
+        zabbix_triggers_total.set(safe_int(total_triggers))
+        
+        enabled_triggers = zapi.trigger.get(filter={'status': '0'}, countOutput=True)
+        zabbix_triggers_enabled.set(safe_int(enabled_triggers))
+        
+        disabled_triggers = zapi.trigger.get(filter={'status': '1'}, countOutput=True)
+        zabbix_triggers_disabled.set(safe_int(disabled_triggers))
+        
+        active_triggers = zapi.trigger.get(filter={'value': '1'}, countOutput=True)
+        zabbix_triggers_active.set(safe_int(active_triggers))
+        
+        logger.info(f"Triggers: total={total_triggers}, enabled={enabled_triggers}, active={active_triggers}")
+        
+        # Problem metrics
+        total_problems = zapi.problem.get(countOutput=True)
+        zabbix_problems_total.set(safe_int(total_problems))
+        
+        # Problems by severity
+        severities = {
+            '0': 'not_classified',
+            '1': 'information',
+            '2': 'warning',
+            '3': 'average',
+            '4': 'high',
+            '5': 'disaster'
+        }
+        
+        for severity_id, severity_name in severities.items():
+            try:
+                problems = zapi.problem.get(filter={'severity': severity_id}, countOutput=True)
+                zabbix_problems_by_severity.labels(severity=severity_name).set(safe_int(problems))
+            except:
+                zabbix_problems_by_severity.labels(severity=severity_name).set(0)
+        
+        logger.info(f"Problems: total={total_problems}")
+        
+        # User metrics
+        total_users = zapi.user.get(countOutput=True)
+        zabbix_users_total.set(safe_int(total_users))
+        logger.info(f"Users: total={total_users}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error collecting Zabbix system metrics: {e}")
+        return False
+
+def collect_all_metrics():
+    """Collect all metrics from Zabbix"""
+    start_time = time.time()
+    zapi = None
+    success = False
+    
+    try:
+        # Connect
+        zapi = connect_zabbix()
+        if not zapi:
+            logger.error("Cannot connect to Zabbix API")
+            zabbix_api_up.set(0)
+            return False
+        
+        # API is up
+        zabbix_api_up.set(1)
+        
+        # Get version
+        try:
+            version = zapi.api_version()
+            zabbix_version_info.info({'version': version})
+        except:
+            zabbix_version_info.info({'version': 'unknown'})
+        
+        # 1. Collect Zabbix system metrics
+        system_success = collect_zabbix_system_metrics(zapi)
+        
+        # 2. Collect server metrics
+        try:
+            # Get all enabled hosts with groups
+            hosts = zapi.host.get(
+                output=['hostid', 'host', 'name', 'status', 'available'],
+                selectGroups=['name'],
+                filter={'status': '0'},  # Only enabled hosts
+                limit=100  # Limit for performance
+            )
+            
+            logger.info(f"Collecting metrics for {len(hosts)} servers")
+            
+            for host in hosts:
+                collect_server_metrics(zapi, host)
+            
+            logger.info(f"Server metrics collected for {len(hosts)} hosts")
+            
+        except Exception as e:
+            logger.error(f"Error collecting server metrics: {e}")
+        
+        success = system_success
+        
+    except Exception as e:
+        logger.error(f"Error during metrics collection: {e}")
+        success = False
+        
+    finally:
+        # Logout
+        if zapi:
+            try:
+                zapi.user.logout()
+            except:
+                pass
+        
+        # Update collection metrics
+        duration = time.time() - start_time
+        zabbix_collection_duration.set(duration)
+        
+        if success:
+            zabbix_scrape_success_total.inc()
+        else:
+            zabbix_scrape_errors_total.inc()
+        
+        logger.info(f"Collection completed in {duration:.2f} seconds")
+        return success
+
+# ============================================================================
+# Main Application
+# ============================================================================
+
+def main():
+    """Main application"""
+    # Handle signals
+    shutdown = False
+    
+    def signal_handler(signum, frame):
+        nonlocal shutdown
+        logger.info(f"Received signal {signum}, shutting down...")
+        shutdown = True
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    try:
+        # Configuration
+        port = safe_int(os.getenv('EXPORTER_PORT', '9285'), 9285)
+        scrape_interval = safe_int(os.getenv('SCRAPE_INTERVAL', '60'), 60)  # 60s for server metrics
+        
+        # Set exporter info
+        zabbix_exporter_info.info({
+            'version': '3.0-server',
+            'start_time': datetime.now().isoformat(),
+            'features': 'windows-linux-server-metrics'
+        })
+        
+        # Startup message
+        logger.info("=" * 70)
+        logger.info("Zabbix Prometheus Exporter v3.0")
+        logger.info(f"Port: {port}")
+        logger.info(f"Scrape interval: {scrape_interval}s")
+        logger.info("Collecting Windows & Linux server metrics")
+        logger.info("=" * 70)
+        
+        # Start server
+        start_http_server(port)
+        logger.info(f"Exporter started on port {port}")
+        
+        # Main loop
+        cycle = 0
+        while not shutdown:
+            cycle += 1
+            logger.info(f"Collection cycle #{cycle}")
+            
+            collect_all_metrics()
+            
+            # Sleep with shutdown check
+            for _ in range(scrape_interval):
+                if shutdown:
+                    break
+                time.sleep(1)
+        
+        logger.info("Exporter shutdown complete")
+        
+    except KeyboardInterrupt:
+        logger.info("Exporter stopped by user")
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
+        sys.exit(1)
+
+if __name__ == '__main__':
+    while True:
+        try:
+            main()
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            print(f"Exporter crashed: {e}")
+            import traceback
+            traceback.print_exc()
+            print("Restarting in 30 seconds...")
+            time.sleep(30)

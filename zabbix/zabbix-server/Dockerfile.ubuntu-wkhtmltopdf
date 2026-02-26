@@ -1,0 +1,75 @@
+FROM zabbix/zabbix-server-pgsql:ubuntu-7.4.5
+
+USER root
+
+# First, update apt sources and install dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    wget \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Check what Ubuntu version we're on
+RUN cat /etc/os-release
+
+# Install all required dependencies first
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    fontconfig \
+    libfontconfig1 \
+    libfreetype6 \
+    libjpeg-turbo8 \
+    libpng16-16 \
+    libx11-6 \
+    libxcb1 \
+    libxext6 \
+    libxrender1 \
+    xfonts-75dpi \
+    xfonts-base \
+    && rm -rf /var/lib/apt/lists/*
+
+# Try to install libssl based on Ubuntu version
+RUN . /etc/os-release && \
+    if [ "$VERSION_ID" = "18.04" ]; then \
+        echo "Ubuntu 18.04 (Bionic)" && \
+        apt-get update && apt-get install -y libssl1.0.0; \
+    elif [ "$VERSION_ID" = "20.04" ]; then \
+        echo "Ubuntu 20.04 (Focal)" && \
+        apt-get update && apt-get install -y libssl1.1; \
+    elif [ "$VERSION_ID" = "22.04" ]; then \
+        echo "Ubuntu 22.04 (Jammy)" && \
+        apt-get update && apt-get install -y libssl3; \
+    else \
+        echo "Unknown version, trying libssl-dev" && \
+        apt-get update && apt-get install -y libssl-dev; \
+    fi && \
+    rm -rf /var/lib/apt/lists/*
+
+# Now install wkhtmltopdf
+RUN . /etc/os-release && \
+    if [ "$VERSION_ID" = "18.04" ]; then \
+        wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bionic_amd64.deb -O /tmp/wkhtmltox.deb; \
+    elif [ "$VERSION_ID" = "20.04" ]; then \
+        wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.focal_amd64.deb -O /tmp/wkhtmltox.deb; \
+    elif [ "$VERSION_ID" = "22.04" ]; then \
+        wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.jammy_amd64.deb -O /tmp/wkhtmltox.deb; \
+    else \
+        echo "Unknown version, trying focal (20.04) as fallback" && \
+        wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.focal_amd64.deb -O /tmp/wkhtmltox.deb; \
+    fi && \
+    dpkg -i /tmp/wkhtmltox.deb || apt-get install -f -y && \
+    rm /tmp/wkhtmltox.deb
+
+# Alternative: Use static binaries if deb package fails
+# RUN wget -q https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox-0.12.5-1.centos7.x86_64.rpm -O /tmp/wkhtmltox.rpm && \
+#     apt-get install -y rpm && \
+#     rpm2cpio /tmp/wkhtmltox.rpm | cpio -idmv && \
+#     cp usr/local/bin/wkhtmltopdf /usr/local/bin/ && \
+#     cp usr/local/bin/wkhtmltoimage /usr/local/bin/ && \
+#     chmod +x /usr/local/bin/wkhtmltopdf /usr/local/bin/wkhtmltoimage && \
+#     rm -rf /tmp/wkhtmltox.rpm usr
+
+# Verify installation
+RUN which wkhtmltopdf && wkhtmltopdf --version
+
+USER 1997

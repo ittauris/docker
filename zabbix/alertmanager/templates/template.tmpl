@@ -1,0 +1,49 @@
+{{ define "email.tauris.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; }
+        .table th, .table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .table th { background-color: #f4f4f4; }
+        
+        /* Definícia farieb podľa severity */
+        .severity-disaster { background-color: #e57373; color: white; } /* Tmavočervená */
+        .severity-high { background-color: #ff8a65; }                 /* Oranžovo-červená */
+        .severity-average { background-color: #ffd54f; }              /* Oranžová */
+        .severity-warning { background-color: #fff176; }              /* Žltá */
+        .status-resolved { background-color: #a5d6a7; }               /* Zelená */
+    </style>
+</head>
+<body>
+    <h2 style="color: {{ if eq .Status "firing" }}#d32f2f{{ else }}#388e3c{{ end }};">
+        Stav monitoringu: {{ if eq .Status "firing" }}PROBLÉM (FIRING){{ else }}VYRIEŠENÉ (RESOLVED){{ end }}
+    </h2>
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Alert</th>
+                <th>Server (Host)</th>
+                <th>Závažnosť</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{ range .Alerts }}
+            <tr class="{{ if eq $.Status "resolved" }}status-resolved{{ else }}severity-{{ .Labels.severity | toLower }}{{ end }}">
+                <td><strong>{{ .Labels.alertname }}</strong></td>
+                <td>{{ if .Labels.host }}{{ .Labels.host }}{{ else }}Zabbix Agent{{ end }}</td>
+                <td>{{ .Labels.severity }}</td>
+            </tr>
+        {{ end }}
+        </tbody>
+    </table>
+    
+    <p style="margin-top: 20px;">
+        <a href="http://10.60.20.85/zabbix.php?action=problem.view" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+            Otvoriť Zabbix
+        </a>
+    </p>
+</body>
+</html>
+{{ end }}

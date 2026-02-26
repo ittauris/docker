@@ -1,0 +1,9 @@
+wazuh/
+wazuh.old/
+zabbix/backups/
+zabbix/postgres/
+zabbix/grafana-data/
+homarr/data/
+dockge/data/
+*.zip
+pg_*

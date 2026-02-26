@@ -1,0 +1,425 @@
+networks:
+  zabbix-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  zabbix-alertscripts:
+  zabbix-externalscripts:
+  zabbix-modules:
+  zabbix-enc:
+  zabbix-ssh-keys:
+  zabbix-ssl-certs:
+  zabbix-ssl-keys:
+  zabbix-ssl-ssl-ca:
+  zabbix-snmptraps:
+  zabbix-mibs:
+  grafana-data:
+  prometheus-data:  # Pridané pre Prometheus
+  alertmanager-data:  # Pridané pre Alertmanager
+
+services:
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: zabbix-postgres
+    hostname: zabbix-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-zabbix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-zabbix}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+    shm_size: 256m
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zabbix} -d ${POSTGRES_DB:-zabbix}"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 45s
+
+  # PostgreSQL Backup
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local
+    container_name: zabbix-postgres-backup
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-zabbix}
+      POSTGRES_USER: ${POSTGRES_USER:-zabbix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 14
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 3
+      POSTGRES_EXTRA_OPTS: "--format=custom --blobs"
+      HEALTHCHECK_PORT: 8080
+    volumes:
+      - ./backups/postgres:/backups
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+
+  # SNMP Trap Daemon
+  zabbix-snmptraps:
+    image: zabbix/zabbix-snmptraps:alpine-7.4.5
+    container_name: zabbix-snmptraps
+    hostname: zabbix-snmptraps
+    ports:
+      - "1162:1162/udp"
+    volumes:
+      - zabbix-snmptraps:/var/lib/zabbix/snmptraps:rw
+      - zabbix-mibs:/usr/share/snmp/mibs:ro
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+
+  # Zabbix Server
+  zabbix-server:
+    build:
+      context: ./zabbix-server
+      dockerfile: Dockerfile
+  #  image: zabbix/zabbix-server-pgsql:alpine-7.4.5
+    container_name: zabbix-server
+    hostname: zabbix-server
+    environment:
+      DB_SERVER_HOST: postgres
+      DB_SERVER_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-zabbix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-zabbix}
+      ZBX_ENABLE_SNMP_TRAPS: "true"
+      ZBX_STARTPOLLERS: ${ZBX_STARTPOLLERS:-5}
+      ZBX_STARTTRAPPERS: ${ZBX_STARTTRAPPERS:-5}
+      ZBX_STARTPINGERS: ${ZBX_STARTPINGERS:-1}
+      ZBX_STARTDISCOVERERS: ${ZBX_STARTDISCOVERERS:-1}
+      ZBX_STARTHTTPPOLLERS: ${ZBX_STARTHTTPPOLLERS:-1}
+      ZBX_STARTVMWARECOLLECTORS: ${ZBX_STARTVMWARECOLLECTORS:-0}
+      ZBX_CACHESIZE: ${ZBX_CACHESIZE:-128M}
+      ZBX_HISTORYCACHESIZE: ${ZBX_HISTORYCACHESIZE:-64M}
+      ZBX_HISTORYINDEXCACHESIZE: ${ZBX_HISTORYINDEXCACHESIZE:-16M}
+      ZBX_TRENDCACHESIZE: ${ZBX_TRENDCACHESIZE:-16M}
+      ZBX_VALUECACHESIZE: ${ZBX_VALUECACHESIZE:-64M}
+      ZBX_TIMEOUT: ${ZBX_TIMEOUT:-4}
+      TZ: ${TZ:-Europe/Bratislava}
+      STARTREPORTWRITERS: "1"
+      WEBSERVICEURL: "http://zabbix-web-service:10053/report"
+    ports:
+      - "10051:10051"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - zabbix-alertscripts:/usr/lib/zabbix/alertscripts:ro
+      - zabbix-externalscripts:/usr/lib/zabbix/externalscripts:ro
+      - zabbix-modules:/var/lib/zabbix/modules:ro
+      - zabbix-enc:/var/lib/zabbix/enc:ro
+      - zabbix-ssh-keys:/var/lib/zabbix/ssh_keys:ro
+      - zabbix-ssl-certs:/var/lib/zabbix/ssl/certs:ro
+      - zabbix-ssl-keys:/var/lib/zabbix/ssl/keys:ro
+      - zabbix-ssl-ssl-ca:/var/lib/zabbix/ssl/ssl_ca:ro
+      - zabbix-snmptraps:/var/lib/zabbix/snmptraps:ro
+      - zabbix-mibs:/var/lib/zabbix/mibs:ro
+      - ./zabbix-server/mibs:/usr/share/snmp/mibs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      zabbix-snmptraps:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+    healthcheck:
+      test: ["CMD-SHELL", "zabbix_server -R config_cache_reload || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  #Zabbix web service
+  zabbix-web-service:
+    image: zabbix/zabbix-web-service:alpine-7.4.5
+    container_name: zabbix-web-service
+    hostname: zabbix-web-service
+    environment:
+      ZBX_ALLOWEDIP: 172.18.0.0/16
+    ports:
+      - "10053:10053"
+    depends_on:
+      - zabbix-server
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+
+
+  # Zabbix Web Interface
+  zabbix-frontend:
+    image: zabbix/zabbix-web-nginx-pgsql:alpine-7.4.5
+    container_name: zabbix-frontend
+    hostname: zabbix-frontend
+    environment:
+      DB_SERVER_HOST: postgres
+      DB_SERVER_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-zabbix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-zabbix}
+      ZBX_SERVER_HOST: zabbix-server
+      ZBX_SERVER_PORT: 10051
+      ZBX_SERVER_NAME: ${ZBX_SERVER_NAME:-Zabbix Server}
+      PHP_TZ: ${PHP_TZ:-Europe/Bratislava}
+      ZBX_MAXEXECUTIONTIME: 600
+      ZBX_MEMORYLIMIT: 256M
+      ZBX_POSTMAXSIZE: 32M
+      ZBX_UPLOADMAXFILESIZE: 16M
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - zabbix-ssl-certs:/etc/ssl/nginx:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      zabbix-server:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Zabbix Agent 2
+  zabbix-agent:
+    image: zabbix/zabbix-agent2:alpine-7.4.5
+    container_name: zabbix-agent
+    hostname: zabbix-agent
+    privileged: false
+    pid: host
+    environment:
+      ZBX_HOSTNAME: zabbix-agent
+      ZBX_SERVER_HOST: zabbix-server
+      ZBX_SERVER_PORT: 10051
+      ZBX_PASSIVE_ALLOW: "true"
+      ZBX_ACTIVE_ALLOW: "true"
+      ZBX_HOSTMETADATA: ${ZBX_HOSTMETADATA:-Linux docker}
+      ZBX_DEBUGLEVEL: ${ZBX_DEBUGLEVEL:-3}
+      TZ: ${TZ:-Europe/Bratislava}
+    user: root
+    ports:
+      - "10055:10050"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /dev:/host/dev:ro
+      - /var/run:/var/run:ro
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+    depends_on:
+      - zabbix-server
+
+  # Prometheus Server
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    hostname: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./prometheus/targets:/etc/prometheus/targets:ro
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - alertmanager
+
+  # Prometheus Alertmanager
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    hostname: alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--cluster.advertise-address=0.0.0.0:9093'
+    ports:
+      - "9093:9093"
+    volumes:
+      - alertmanager-data:/alertmanager
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./alertmanager/templates:/etc/alertmanager/templates:ro
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus Node Exporter
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    hostname: node-exporter
+    command:
+      - '--path.rootfs=/host'
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+    deploy:
+      resources:
+        reservations:
+          memory: 50M
+        limits:
+          memory: 200M
+
+  # cAdvisor (Container metrics)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    hostname: cadvisor
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "8081:8080"
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+    deploy:
+      resources:
+        reservations:
+          memory: 128M
+        limits:
+          memory: 256M
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: grafana
+    hostname: grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+      GF_SECURITY_SECRET_KEY: ${GF_SECURITY_SECRET_KEY}
+      GF_SERVER_ROOT_URL: ${GF_SERVER_ROOT_URL:-http://localhost:3000}
+      GF_INSTALL_PLUGINS: alexanderzobnin-zabbix-app,grafana-clock-panel,grafana-piechart-panel
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: alexanderzobnin-zabbix-datasource
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_DEFAULT_THEME: dark
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_DATABASE_TYPE: sqlite3
+      TZ: ${TZ:-Europe/Bratislava}
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    networks:
+      - zabbix-net
+    depends_on:
+      - zabbix-server
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  zabbix-exporter:
+    build:
+      context: ./zabbix-exporter
+      dockerfile: Dockerfile
+    container_name: zabbix-exporter
+    restart: unless-stopped
+    environment:
+      ZABBIX_URL: http://zabbix-frontend:8080/api_jsonrpc.php
+      ZABBIX_USER: zabbix-api
+      ZABBIX_PASSWORD: ${ZBX_API_PASSWORD:-zabbix}
+      ZABBIX_SSL_VERIFY: "false"
+      PORT: 9285
+      METRICS_NAMESPACE: zabbix
+      SCRAPE_INTERVAL: 30
+      LOG_LEVEL: DEBUG
+      PYTHONUNBUFFERED: 1
+      TZ: Europe/Bratislava
+    ports:
+      - "9285:9285"
+    volumes:
+      - ./zabbix-exporter/logs:/var/log
+    networks:
+      - zabbix-net
+    depends_on:
+      zabbix-frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:9285/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M

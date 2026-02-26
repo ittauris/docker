@@ -1,0 +1,48 @@
+{{ define "email.tauris.html" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .table { border-collapse: collapse; width: 100%; font-family: Segoe UI, Arial, sans-serif; font-size: 14px; }
+        .table th, .table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        .table th { background-color: #f4f4f4; color: #333; }
+        
+        /* Farby riadkov podľa severity */
+        .sev-disaster { background-color: #e57373; color: white; }
+        .sev-high { background-color: #ff8a65; }
+        .sev-average { background-color: #ffd54f; }
+        .sev-warning { background-color: #fff176; }
+        .status-resolved { background-color: #a5d6a7; }
+    </style>
+</head>
+<body>
+    <h2 style="color: {{ if eq .Status "firing" }}#d32f2f{{ else }}#388e3c{{ end }};">
+        Stav monitoringu: {{ if eq .Status "firing" }}PROBLÉM{{ else }}VYRIEŠENÉ{{ end }}
+    </h2>
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Server (Host)</th>
+                <th>Problém a popis</th>
+                <th>Závažnosť</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{ range .Alerts }}
+            <tr class="{{ if eq $.Status "resolved" }}status-resolved{{ else }}sev-{{ .Labels.severity | toLower }}{{ end }}">
+                <td><strong>{{ if .Labels.host }}{{ .Labels.host }}{{ else }}Zabbix Server{{ end }}</strong></td>
+                <td>
+                    <div style="font-weight: bold;">{{ .Labels.alertname }}</div>
+                    <div style="font-size: 12px; margin-top: 4px; color: #444;">{{ .Annotations.description }}</div>
+                </td>
+                <td>{{ .Labels.severity }}</td>
+            </tr>
+        {{ end }}
+        </tbody>
+    </table>
+    
+    <p><small>Zaslané z Alertmanager Tauris o {{ (index .Alerts 0).StartsAt.Format "15:04:05 02.01.2006" }}</small></p>
+</body>
+</html>
+{{ end }}

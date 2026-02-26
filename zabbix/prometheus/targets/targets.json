@@ -1,0 +1,497 @@
+[
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "ASKE21"
+    },
+    "targets": [
+      "10.60.20.40:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "ASKE22"
+    },
+    "targets": [
+      "10.60.20.41:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "BSKE21"
+    },
+    "targets": [
+      "10.60.20.61:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "BSKE31"
+    },
+    "targets": [
+      "10.60.20.35:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "DCKE30"
+    },
+    "targets": [
+      "10.60.20.21:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "DCKE31"
+    },
+    "targets": [
+      "10.60.40.98:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "FSKE21"
+    },
+    "targets": [
+      "10.60.20.50:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "HVKE21"
+    },
+    "targets": [
+      "10.60.20.31:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "HVKE22"
+    },
+    "targets": [
+      "10.60.20.32:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "other",
+      "instance": "PAM-XP"
+    },
+    "targets": [
+      "192.168.7.139:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "PSKE21"
+    },
+    "targets": [
+      "10.60.20.55:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "PSKE22"
+    },
+    "targets": [
+      "10.60.20.56:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "KE",
+      "instance": "PSKE30"
+    },
+    "targets": [
+      "10.60.20.54:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "other",
+      "instance": "MOP9999"
+    },
+    "targets": [
+      "10.60.50.13:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "other",
+      "instance": "PN0382T"
+    },
+    "targets": [
+      "10.60.50.8:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "other",
+      "instance": "PN0382TL"
+    },
+    "targets": [
+      "10.60.40.7:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "ADMRS30"
+    },
+    "targets": [
+      "10.20.20.99:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "ASRS21"
+    },
+    "targets": [
+      "10.20.20.40:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "ASRS22"
+    },
+    "targets": [
+      "10.20.20.41:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "BSRS21"
+    },
+    "targets": [
+      "10.20.20.61:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "BSRS31"
+    },
+    "targets": [
+      "10.20.20.35:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "DCRS30"
+    },
+    "targets": [
+      "10.20.20.21:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "FSRS21"
+    },
+    "targets": [
+      "10.20.20.50:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "HVRS21"
+    },
+    "targets": [
+      "10.20.20.31:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "HVRS22"
+    },
+    "targets": [
+      "10.20.20.32:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "PSRS30"
+    },
+    "targets": [
+      "10.20.20.54:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "RS",
+      "instance": "SCCMRS"
+    },
+    "targets": [
+      "10.20.20.20:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "other",
+      "instance": "VM-005"
+    },
+    "targets": [
+      "10.10.67.53:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "other",
+      "instance": "VM-015"
+    },
+    "targets": [
+      "10.20.20.15:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "ADCTC30"
+    },
+    "targets": [
+      "10.100.0.23:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "ASTC21"
+    },
+    "targets": [
+      "10.100.0.40:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "BIZTC00"
+    },
+    "targets": [
+      "10.100.0.70:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "DBTC22"
+    },
+    "targets": [
+      "10.100.0.72:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "DCTC30"
+    },
+    "targets": [
+      "10.100.0.21:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "PKITC30"
+    },
+    "targets": [
+      "10.100.0.10:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "PMTTC01"
+    },
+    "targets": [
+      "10.100.0.73:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "PSTC30"
+    },
+    "targets": [
+      "10.100.0.54:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "PTTCAP"
+    },
+    "targets": [
+      "10.100.0.32:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "PTTCDB"
+    },
+    "targets": [
+      "10.100.0.33:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "SALTC"
+    },
+    "targets": [
+      "10.100.0.74:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "other",
+      "instance": "TG-BNS-DB"
+    },
+    "targets": [
+      "10.100.0.41:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "TSTC21"
+    },
+    "targets": [
+      "10.100.0.51:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "TSTC22"
+    },
+    "targets": [
+      "10.100.0.52:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "TC",
+      "instance": "TSTC23"
+    },
+    "targets": [
+      "10.100.0.53:9182"
+    ]
+  },
+  {
+    "labels": {
+      "job": "windows-servers",
+      "env": "production",
+      "group": "other",
+      "instance": "WeberNet"
+    },
+    "targets": [
+      "10.100.0.71:9182"
+    ]
+  }
+]

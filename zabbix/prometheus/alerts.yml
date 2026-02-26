@@ -1,0 +1,140 @@
+groups:
+  - name: zabbix_alerts
+    rules:
+      # Zabbix API status
+      - alert: ZabbixAPIDown
+        expr: zabbix_api_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: zabbix
+        annotations:
+          summary: "Zabbix API is down"
+          description: "Zabbix exporter cannot connect to Zabbix API for more than 2 minutes"
+      
+      # Zabbix exporter collection failed
+      - alert: ZabbixExporterCollectionFailed
+        expr: increase(zabbix_scrape_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: zabbix-exporter
+        annotations:
+          summary: "Zabbix exporter collection failed"
+          description: "Zabbix exporter failed to collect metrics"
+      
+      # Too many hosts disabled
+      - alert: ZabbixTooManyHostsDisabled
+        expr: zabbix_hosts_disabled / zabbix_hosts_total > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          service: zabbix
+        annotations:
+          summary: "More than 30% of Zabbix hosts are disabled"
+          description: "{{ $value | humanizePercentage }} of Zabbix hosts are disabled"
+      
+      # Active problems - musíme to rozdělit na jednotlivé severity
+      - alert: ZabbixNotClassifiedProblems
+        expr: zabbix_problems_by_severity{severity="not_classified"} > 0
+        for: 5m
+        labels:
+          severity: info
+          service: zabbix
+        annotations:
+          summary: "Not classified problems in Zabbix"
+          description: "There are {{ $value }} not classified problems in Zabbix"
+      
+      - alert: ZabbixInformationProblems
+        expr: zabbix_problems_by_severity{severity="information"} > 0
+        for: 5m
+        labels:
+          severity: info
+          service: zabbix
+        annotations:
+          summary: "Information problems in Zabbix"
+          description: "There are {{ $value }} information problems in Zabbix"
+      
+      - alert: ZabbixWarningProblems
+        expr: zabbix_problems_by_severity{severity="warning"} > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: zabbix
+        annotations:
+          summary: "Warning problems in Zabbix"
+          description: "There are {{ $value }} warning problems in Zabbix"
+      
+      - alert: ZabbixAverageProblems
+        expr: zabbix_problems_by_severity{severity="average"} > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: zabbix
+        annotations:
+          summary: "Average problems in Zabbix"
+          description: "There are {{ $value }} average problems in Zabbix"
+      
+      - alert: ZabbixHighProblems
+        expr: zabbix_problems_by_severity{severity="high"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: zabbix
+        annotations:
+          summary: "High severity problems in Zabbix"
+          description: "There are {{ $value }} high severity problems in Zabbix"
+      
+      - alert: ZabbixDisasterProblems
+        expr: zabbix_problems_by_severity{severity="disaster"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: zabbix
+        annotations:
+          summary: "Disaster severity problems in Zabbix"
+          description: "There are {{ $value }} disaster severity problems in Zabbix"
+      
+      # Too many unsupported items
+      - alert: ZabbixTooManyUnsupportedItems
+        expr: zabbix_items_unsupported / zabbix_items_total > 0.1
+        for: 15m
+        labels:
+          severity: warning
+          service: zabbix
+        annotations:
+          summary: "More than 10% of items are unsupported"
+          description: "{{ $value | humanizePercentage }} of Zabbix items are unsupported"
+      
+      # Too many triggers disabled
+      - alert: ZabbixTooManyTriggersDisabled
+        expr: zabbix_triggers_disabled / zabbix_triggers_total > 0.2
+        for: 10m
+        labels:
+          severity: warning
+          service: zabbix
+        annotations:
+          summary: "More than 20% of triggers are disabled"
+          description: "{{ $value | humanizePercentage }} of Zabbix triggers are disabled"
+      
+      # No hosts monitored
+      - alert: ZabbixNoHostsMonitored
+        expr: zabbix_hosts_total == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: zabbix
+        annotations:
+          summary: "No hosts being monitored in Zabbix"
+          description: "Zabbix has 0 hosts configured for monitoring"
+      
+      # Slow scrape duration
+      - alert: ZabbixSlowScrape
+        expr: zabbix_scrape_duration_seconds > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: zabbix-exporter
+        annotations:
+          summary: "Zabbix scrape is taking too long"
+          description: "Zabbix scrape took {{ $value }} seconds"

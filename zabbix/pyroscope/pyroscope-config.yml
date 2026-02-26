@@ -1,0 +1,20 @@
+target: all
+
+server:
+  http_listen_port: 4040
+  grpc_listen_port: 9090
+
+storage:
+  backend: filesystem
+  filesystem:
+    dir: /var/lib/pyroscope
+
+# V niektorých verziách 1.x sa retention nastavuje priamo v storage
+# Ak by riadok nižšie opäť zlyhal, skúste ho úplne vymazať (použije sa default)
+
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1

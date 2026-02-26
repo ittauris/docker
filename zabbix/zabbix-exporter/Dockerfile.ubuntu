@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip install --no-cache-dir prometheus-client pyzabbix requests
+
+WORKDIR /app
+COPY exporter.py .
+#COPY requirements.txt .  # ak máš requirements.txt
+
+# Ak chceš použiť requirements.txt namiesto priameho pip install
+# RUN pip install --no-cache-dir -r requirements.txt
+
+EXPOSE 9285
+
+# Create log directory
+RUN mkdir -p /var/log
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:9285/metrics || exit 1
+
+CMD ["python", "exporter.py"]

@@ -1,0 +1,48 @@
+templates:
+  - '/etc/alertmanager/*.tmpl'
+global:
+  smtp_smarthost: 'tauris-sk.mail.protection.outlook.com:25'
+  smtp_from: 'zabbix@tauris.sk'
+#  smtp_auth_username: 'your-email@gmail.com'
+#  smtp_auth_password: 'your-app-password'
+
+route:
+  group_by: ['alertname', 'host']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 24h
+  receiver: 'email-notifications' # Predvolený príjemca
+
+  routes:
+    # FILTROVANIE: Zahodí všetko, čo má severity "Information"
+    - matchers:
+        - severity = "Information"
+      receiver: 'null'
+    
+    # --- HYPER-V VRSTVA ---
+    - matchers:
+        - alertname=~".*Hyper-V.*"
+      receiver: 'email-notifications'
+      group_by: ['host'] # Zoskupí chyby podľa fyzického hostiteľa
+
+    # --- DATABÁZOVÁ VRSTVA (MSSQL, Postgres, MySQL) ---
+    - matchers:
+        - alertname=~".*(MSSQL|Postgres|MySQL|DB).*"
+      receiver: 'email-notifications'
+      group_wait: 10s # Pri DB chceme info čo najskôr
+
+    # --- WINDOWS SERVICES ---
+    - matchers: 
+        - alertname=~".*service.*is not running.*"
+      receiver: 'email-notifications'
+
+receivers:
+  - name: 'email-notifications'
+    email_configs:
+      - to: 'findrik@tauris.sk'
+        # Dynamický predmet: Host - Alertname
+        headers:
+          subject: '{{ range .Alerts }}{{ .Labels.host }} - {{ .Labels.alertname }}{{ end }}'
+        html: '{{ template "email.tauris.html" . }}'
+        require_tls: false
+  - name: 'null'

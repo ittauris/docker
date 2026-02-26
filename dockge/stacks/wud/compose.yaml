@@ -1,0 +1,18 @@
+services:
+  wud:
+    image: fmartinou/whats-up-docker
+    container_name: wud
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Potrebné na sledovanie ostatných kontajnerov
+    ports:
+      - 3010:3000
+    environment:
+      - WUD_WATCH_POLL=0 0 6 * * * # Kontrola raz denne
+      #- WUD_TRIGGER_DOCKER_LOCAL_ENABLED=true # Odkomentujte, ak chcete automatické aktualizácie
+      - WUD_TRIGGER_DOCKER_LOCAL_ENABLED=true
+      # Voliteľne: odstraňovanie starých image po update (šetrí miesto)
+      - WUD_TRIGGER_DOCKER_LOCAL_PRUNE=true
+      - WUD_REGISTRY_DOCKERHUB_USERNAME=ittauris
+      - WUD_REGISTRY_DOCKERHUB_PASSWORD=overpl@y-HEADSTONE-popp3r-rumbling
+    restart: always
+networks: {}

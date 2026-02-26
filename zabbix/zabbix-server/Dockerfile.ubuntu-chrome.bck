@@ -1,0 +1,94 @@
+FROM zabbix/zabbix-server-pgsql:ubuntu-7.4.5
+
+USER root
+
+# Debug: Show Ubuntu version first
+RUN echo "=== Ubuntu Version ===" && cat /etc/os-release && echo "=================="
+
+# Install Chrome using direct .deb download (most reliable)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    wget \
+    ca-certificates \
+    && wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O /tmp/chrome.deb \
+    && apt-get install -y --no-install-recommends /tmp/chrome.deb \
+    || (echo "First attempt failed, trying with -f" && apt-get install -f -y) \
+    && rm -f /tmp/chrome.deb \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Chrome dependencies (try both old and new package names)
+RUN apt-get update && \
+    for pkg in \
+        "libasound2" \
+        "libasound2t64" \
+        "libatk-bridge2.0-0" \
+        "libatk1.0-0" \
+        "libc6" \
+        "libcairo2" \
+        "libcups2" \
+        "libdbus-1-3" \
+        "libexpat1" \
+        "libfontconfig1" \
+        "libgbm1" \
+        "libgcc1" \
+        "libglib2.0-0" \
+        "libgtk-3-0" \
+        "libnspr4" \
+        "libnss3" \
+        "libpango-1.0-0" \
+        "libpangocairo-1.0-0" \
+        "libstdc++6" \
+        "libx11-6" \
+        "libx11-xcb1" \
+        "libxcb1" \
+        "libxcomposite1" \
+        "libxcursor1" \
+        "libxdamage1" \
+        "libxext6" \
+        "libxfixes3" \
+        "libxi6" \
+        "libxrandr2" \
+        "libxrender1" \
+        "libxss1" \
+        "libxtst6" \
+        "fonts-liberation" \
+        "fonts-freefont-ttf" \
+        "wget" \
+    ; do \
+        if apt-cache show "$pkg" > /dev/null 2>&1; then \
+            echo "Installing $pkg"; \
+            apt-get install -y --no-install-recommends "$pkg" || echo "Failed to install $pkg, continuing..."; \
+        else \
+            echo "Package $pkg not available, skipping"; \
+        fi; \
+    done \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create compatibility symlinks
+RUN ln -sf /usr/bin/google-chrome-stable /usr/bin/chromium-browser
+
+# Test Chrome
+RUN echo "=== Chrome Version ===" && \
+    google-chrome-stable --version && \
+    echo "=== Testing PDF Generation ===" && \
+    echo '<html><body><h1>Test PDF</h1></body></html>' > /tmp/test.html && \
+    timeout 30 google-chrome-stable --no-sandbox --headless --disable-gpu --print-to-pdf=/tmp/test.pdf /tmp/test.html 2>&1 | head -20 && \
+    if [ -f /tmp/test.pdf ]; then \
+        echo "✓ PDF creation successful: $(ls -lh /tmp/test.pdf)"; \
+    else \
+        echo "✗ PDF creation failed"; \
+    fi
+
+# Install MSSQL ODBC driver without Microsoft repo
+RUN apt-get update && \
+    apt-get install -y wget unixodbc && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN wget -q https://github.com/microsoft/msodbcsql17/releases/download/17.10.6.1/msodbcsql17_17.10.6.1-1_amd64.deb -O /tmp/msodbcsql17.deb && \
+    ls /tmp && \
+    ACCEPT_EULA=Y dpkg -i /tmp/msodbcsql17.deb || apt-get -f install -y
+#    rm -f /tmp/msodbcsql17.deb
+
+USER 1997
