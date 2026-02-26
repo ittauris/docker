@@ -7,3 +7,5 @@ homarr/data/
 dockge/data/
 *.zip
 pg_*
+.env
+.env
