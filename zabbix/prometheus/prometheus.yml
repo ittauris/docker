@@ -19,23 +19,6 @@ scrape_configs:
     static_configs:
       - targets: ['prometheus:9090'] # Zmenené z localhost na názov služby
 
-  - job_name: 'node-exporter'
-    static_configs:
-      - targets: ['node-exporter:9100']
-
-  - job_name: 'cadvisor'
-    static_configs:
-      - targets: ['cadvisor:8080']
-
-  - job_name: 'zabbix-exporter'
-    scrape_interval: 30s
-    static_configs:
-      - targets: ['zabbix-exporter:9285']
-
-  - job_name: 'alertmanager'
-    static_configs:
-      - targets: ['alertmanager:9093']
-
   - job_name: 'grafana'
     static_configs:
       - targets: ['grafana:3000']
@@ -54,3 +37,6 @@ scrape_configs:
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/targets.json
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['zabbix-loki:3100']

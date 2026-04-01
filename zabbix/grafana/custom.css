@@ -1,0 +1,9 @@
+/* Zabbix Problems panel - fix black text */
+span.problem-description,
+td.problem-tags,
+td.problem-severity,
+td.last-change,
+.react-table-v8 tbody td,
+.react-table-v8 tbody tr {
+  color: var(--text-primary) !important;
+}

@@ -1,6 +1,6 @@
-# Promtail konfigurácia pre Docker logy
 server:
   http_listen_port: 9080
+  grpc_listen_port: 0
 
 positions:
   filename: /tmp/positions.yaml
@@ -9,8 +9,8 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  # Docker container logy
-  - job_name: docker
+  # 1. Docker kontajnery (Zabbix, Postgres, Grafana atď.)
+  - job_name: docker_containers
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 5s
@@ -19,18 +19,22 @@ scrape_configs:
         regex: '/(.*)'
         target_label: 'container'
       - source_labels: ['__meta_docker_container_log_stream']
-        target_label: 'logstream'
+        target_label: 'stream'
+      # Pridá label s obrazom (image), čo pomáha pri filtrovaní verzií
+      - source_labels: ['__meta_docker_container_image']
+        target_label: 'image'
 
-  # Systémové logy
-  - job_name: system
+  # 2. Lokálne systémové logy hostiteľa (Linux)
+  - job_name: system_logs
     static_configs:
       - targets:
           - localhost
         labels:
           job: varlogs
+          host: ${HOSTNAME:-zabbix-host} # Dynamické meno hostiteľa
           __path__: /var/log/*.log
 
-  # Syslog
+  # 3. Špeciálne sledovanie syslogu
   - job_name: syslog
     static_configs:
       - targets:
@@ -38,3 +42,16 @@ scrape_configs:
         labels:
           job: syslog
           __path__: /var/log/syslog
+
+  # 4. PRÍDAVOK: Príjem logov zo siete (napr. Windows Event Logy alebo Fortinet)
+  # Toto umožní posielať logy priamo do Promtailu cez Syslog protokol na porte 1514
+  - job_name: network_syslog
+    syslog:
+      listen_address: 0.0.0.0:1514
+      idle_timeout: 60s
+      label_structured_data: yes
+      labels:
+        job: network_syslog
+    relabel_configs:
+      - source_labels: ['__syslog_connection_hostname']
+        target_label: 'host'

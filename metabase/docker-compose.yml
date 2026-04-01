@@ -1,0 +1,44 @@
+services:
+  metabase:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: metabase_db2
+    ports:
+      - "4000:3000"
+    environment:
+      # Cesta k pluginom vnútri kontajnera (zhodná s Dockerfile)
+      - MB_PLUGINS_DIR=/plugins
+      # Odporúčané pre produkciu: pripojenie na vlastnú DB pre metadáta Metabase
+      # Ak toto nepoužijete, Metabase použije internú H2 databázu (riziko straty dát pri zmazaní volume)
+      - MB_DB_TYPE=postgres
+      - MB_DB_DBNAME=metabaseappdb
+      - MB_DB_PORT=5432
+      - MB_DB_USER=metabase
+      - MB_DB_PASS=mysecretpassword
+      - MB_DB_HOST=db
+    networks:
+      - metabase-net
+    restart: always
+
+  # Voliteľné: Databáza pre ukladanie nastavení Metabase (dashboardy, useri)
+  db:
+    image: postgres:16
+    container_name: metabase_postgres
+    environment:
+      - POSTGRES_DB=metabase
+      - POSTGRES_USER=metabase
+      - POSTGRES_PASSWORD=metabase_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5532:5432"
+    networks:
+      - metabase-net
+
+networks:
+  metabase-net:
+    driver: bridge
+
+volumes:
+  pgdata:

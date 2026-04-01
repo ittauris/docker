@@ -1,0 +1,336 @@
+/* ============================================================
+   Zabbix Plugin - dark.css
+   Grafana 11 + alexanderzobnin-zabbix-app 6.2.1
+   Svetlé pozadie tabuľky, čierny text, čitateľné pagination
+   ============================================================ */
+
+/* --- TABUĽKA: ZÁKLADNÝ LAYOUT --- */
+.react-table-v8 {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.react-table-v8-wrapper {
+  position: relative;
+  min-height: 90px;
+  overflow-x: auto;
+  overflow-y: auto;
+  width: 100%;
+  flex-grow: 1;
+}
+
+/* --- HLAVIČKA --- */
+.react-table-v8 thead tr {
+  background: #1a1a1c !important;
+  border-top: 2px solid #111111;
+  border-bottom: 2px solid #33b5e5;
+  height: 2em;
+}
+
+.react-table-v8 thead th {
+  text-align: left;
+  color: #33b5e5 !important;
+  font-weight: 600;
+  font-size: 0.9em;
+  text-transform: uppercase;
+  padding: .45em 0 .45em 1.1em;
+  background: transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.react-table-v8 thead th .resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 5px;
+  cursor: col-resize;
+  user-select: none;
+  opacity: 0;
+  transition: opacity .2s;
+}
+
+.react-table-v8 thead th:hover .resizer {
+  opacity: .5;
+  background: #33b5e5;
+}
+
+/* --- RIADKY: SVETLÉ POZADIE --- */
+.react-table-v8 tbody tr {
+  background: #f0f0f2 !important;
+}
+
+.react-table-v8 tbody tr.even-row,
+.react-table-v8 tbody tr.even-row-expanded {
+  background: #ffffff !important;
+}
+
+.react-table-v8 tbody tr.even-row td,
+.react-table-v8 tbody tr.even-row-expanded td {
+  background: inherit;
+}
+
+.react-table-v8 tbody tr:hover:not(.no-data-row) td {
+  background: #cce8f8 !important;
+}
+
+/* --- BUNKY: ČIERNY TEXT --- */
+.react-table-v8 tbody td {
+  color: #111111 !important;
+  padding: .45em 0 .45em 1.1em;
+  border-bottom: solid 1px rgba(51, 181, 229, 0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+.react-table-v8 tbody td span,
+span.problem-description,
+.zabbix-hostname,
+.zbx-description {
+  color: #111111 !important;
+}
+
+/* --- SEVERITY BUNKA --- */
+.react-table-v8 tbody td.problem-severity {
+  padding: 0;
+  position: relative;
+}
+
+.react-table-v8 tbody td.problem-severity .severity-cell {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  padding: .45em 0 .45em 1.1em;
+  color: #ffffff !important;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+/* --- TAGY --- */
+.react-table-v8 tbody td.problem-tags {
+  padding-left: .6rem;
+}
+
+.react-table-v8 tbody td.problem-tags .zbx-tag,
+.react-table-v8 tbody td.problem-tags .label-tag {
+  cursor: pointer;
+  margin-right: .6rem;
+  color: #111111 !important;
+  border: 1px solid rgba(0,0,0,0.2);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 12px;
+}
+
+/* --- PAGINATION --- */
+.panel-problems .pagination-v8 {
+  margin-top: auto;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  background: #f0f0f2 !important;
+  border-top: 1px solid #33b5e5;
+  z-index: 1;
+}
+
+.pagination-v8-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pagination-v8-info {
+  color: #111111 !important;
+  margin: 0 .25rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+.pagination-v8-page-input {
+  width: 50px;
+  color: #111111 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #33b5e5;
+  padding: .5rem;
+  border-radius: 3px;
+  text-align: center;
+}
+
+.pagination-v8-page-input:focus {
+  outline: none;
+  border-color: #33b5e5;
+}
+
+.pagination-v8-select {
+  color: #111111 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #33b5e5;
+  padding: .5rem;
+  border-radius: 3px;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.pagination-v8-select option {
+  background-color: #ffffff;
+  color: #111111;
+}
+
+.pagination-v8-btn.-btn {
+  color: #111111 !important;
+  background: #e0e0e0 !important;
+  border: 1px solid #aaaaaa !important;
+  padding: .5rem 1.5rem;
+  cursor: pointer;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.pagination-v8-btn.-btn:hover:not(:disabled) {
+  background: #33b5e5 !important;
+  color: #000000 !important;
+}
+
+.pagination-v8-btn.-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+/* --- PANEL CONTAINER --- */
+.panel-problems {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.panel-problems .react-table-v8-wrapper {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.panel-problems .react-table-v8 tbody tr {
+  border-bottom: solid 1px rgba(51, 181, 229, 0.3);
+}
+
+/* --- DETAIL ROZBALENIE --- */
+.panel-problems .react-table-v8 .problem-details-container {
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+  background-color: #e8e8ea;
+  border-bottom-width: 0px;
+  max-height: 0px;
+  opacity: 0;
+  overflow: hidden;
+  transition-duration: .3s;
+  transition-timing-function: ease-out;
+  transition-property: opacity, max-height;
+  color: #111111 !important;
+}
+
+.panel-problems .react-table-v8 .problem-details-container.show {
+  max-height: 40rem;
+  opacity: 1;
+}
+
+.panel-problems .react-table-v8 .problem-details-container .problem-details-right {
+  color: #333333 !important;
+}
+
+/* --- EXPANDER TLAČIDLO --- */
+.react-table-v8 tbody td.custom-expander {
+  text-align: center;
+  padding: 0;
+  position: relative;
+}
+
+.react-table-v8 tbody td.custom-expander button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+}
+
+.react-table-v8 tbody td.custom-expander button i {
+  color: #555555;
+  font-size: 1.2rem;
+}
+
+.react-table-v8 tbody td.custom-expander button.expanded i,
+.react-table-v8 tbody td.custom-expander button:hover i {
+  color: #33b5e5;
+}
+
+/* --- IKONKY --- */
+.panel-problems .fa-icon-container {
+  padding-right: .4rem;
+  color: #555555;
+}
+
+.panel-problems .fa-icon-container.fired {
+  color: #eb7b18;
+}
+
+/* --- TRIGGERS PANEL (starý widget) --- */
+.triggers-panel-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.alert-rule-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  list-style-type: none;
+}
+
+.alert-rule-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  background: #f0f0f2;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+/* --- ANIMÁCIE --- */
+.zbx-trigger--blinked {
+  opacity: .4;
+  animation: zabbix-triggers-icon .8s cubic-bezier(0.46, 0.03, 0.52, 0.96) 0s infinite alternate;
+}
+
+@keyframes zabbix-triggers-icon {
+  100% { opacity: 1; }
+}
+
+@keyframes blink-shadow {
+  0%   { opacity: 1; text-shadow: 0px 0px 3px #eb7b18; }
+  50%  { opacity: .3; text-shadow: 0px 0px 10px #eb7b18; }
+  100% { opacity: 1; text-shadow: 0px 0px 2px #eb7b18; }
+}

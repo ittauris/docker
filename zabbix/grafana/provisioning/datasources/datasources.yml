@@ -25,3 +25,14 @@ datasources:
       trendCache: true
       trendFrom: 7d
       cacheTTL: 1h
+  - name: Loki
+    type: loki
+    access: proxy
+    # Nahraď 'localhost' IP adresou alebo názvom kontajnera, kde ti beží Loki
+    url: http://zabbix-loki:3100
+    jsonData:
+      # Voliteľné: nastavenie maximálneho počtu riadkov (default je 1000)
+      maxLines: 1000
+    # Ak nepotrebuješ autentifikáciu, nechaj basicAuth: false
+    basicAuth: false
+    editable: true
